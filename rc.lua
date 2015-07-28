@@ -15,6 +15,8 @@ local menubar = require("menubar")
 local treesome = require("treesome")
 -- Bling
 local blingbling = require("blingbling")
+-- Mail
+
 -- {{{ Error handling
 -- Check if awesome encountered an error during startup and fell back to
 -- another config (This code will only ever execute for the fallback config)
@@ -98,20 +100,47 @@ for s = 1, screen.count() do
 	tags[s] = awful.tag(tags.names, s, tags.layout)
 end
 
+-- Icons
+
+baticon = wibox.widget.imagebox()
+baticon:set_image("/home/morningstar/.config/awesome/icons/battery.png")
+upicon = wibox.widget.imagebox()
+upicon:set_image("/home/morningstar/.config/awesome/icons/update.png")
+neticon = wibox.widget.imagebox()
+neticon:set_image("/home/morningstar/.config/awesome/icons/nethigh.png")
+volicon = wibox.widget.imagebox()
+volicon:set_image("/home/morningstar/.config/awesome/icons/volicon.png")
+
+-- Spacer
+spacer= wibox.widget.textbox(" ")
+
 -- Network Widget
-netwidget = blingbling.net({interface = "wlp2s0", show_text = true})
-netwidget:set_ippopup()
+
+netwidget = wibox.widget.textbox()
+vicious.register(netwidget, vicious.widgets.net, function(widget, args)
+    local interface = ""
+    if args["{wlp2s0 carrier}"] == 1 then
+        interface = "wlp2s0"
+    elseif args["{enp0s25 carrier}"] == 1 then
+        interface = "enp0s25"
+    else
+        return ""
+    end
+return '<span background="#0a0a0a" font="Sans Mono"> <span font ="Sans Mono 8" color="#94898c">'..args["{"..interface.." down_kb}"]..'kbps '..'</span></span>' end, 10)
+
 -- Volume Widget
 
-volume_master = blingbling.volume({height = 18, width = 40, bar =true, show_text = true, label ="$percent%"})
-volume_master:update_master()
-volume_master:set_master_control()
+volume = wibox.widget.textbox()
+vicious.register(volume, vicious.widgets.volume,
+'<span background="#0a0a0a" font="Sans Mono 8"><span font="Sans Mono 8" color="#94898c"> $1 </span></span>', 0.3, "Master")
 
 -- Battery Widget
+
 batwidget = wibox.widget.textbox()
-vicious.register(batwidget, vicious.widgets.bat, " ⚡ $2 ", 32, "BAT0")
+vicious.register(batwidget, vicious.widgets.bat, " $1$2 ", 32, "BAT0")
 
 -- Pacman Widget
+
 pacwidget = wibox.widget.textbox()
 
 pacwidget_t = awful.tooltip({ objects = { pacwidget},})
@@ -131,14 +160,23 @@ vicious.register(pacwidget, vicious.widgets.pkg,
 		    end
                     pacwidget_t:set_text(str)
                     s:close()	
-                    return " ✣ " .. i .. " "
+                    return "  " .. i .. " "
 
                 
 		end , 450, "Arch")
 
--- {{{ Wibox
--- Create a textclock widget
-mytextclock = awful.widget.textclock()
+-- CPU Widget
+
+cores_graph_conf ={height = 18, width = 8, rounded_size = 0.3}
+cores_graphs = {}
+for i=1,4 do
+	  cores_graphs[i] = blingbling.progress_graph( cores_graph_conf)
+	    vicious.register(cores_graphs[i], vicious.widgets.cpu, "$"..(i+1).."",1)
+    end
+-- Calendar Widget
+
+calendar = blingbling.calendar()
+calendar:set_link_to_external_calendar(true)
 
 -- Create a wibox for each screen and add it
 mywibox = {}
@@ -202,6 +240,7 @@ for s = 1, screen.count() do
                            awful.button({ }, 4, function () awful.layout.inc(layouts, 1) end),
                            awful.button({ }, 5, function () awful.layout.inc(layouts, -1) end)))
     -- Create a taglist widget
+ 
     mytaglist[s] = awful.widget.taglist(s, awful.widget.taglist.filter.all, mytaglist.buttons)
 
     -- Create a tasklist widget
@@ -217,12 +256,20 @@ for s = 1, screen.count() do
 
     -- Widgets that are aligned to the right
     local right_layout = wibox.layout.fixed.horizontal()
-    right_layout:add(volume_master)
-    right_layout:add(netwidget)
-    right_layout:add(pacwidget)
-    right_layout:add(batwidget)
     if s == 1 then right_layout:add(wibox.widget.systray()) end
-    right_layout:add(mytextclock)
+    for i=1,4 do
+	      right_layout:add(cores_graphs[i])
+      end
+    right_layout:add(volicon)
+    right_layout:add(volume)  
+    right_layout:add(neticon) 
+    right_layout:add(netwidget)
+    right_layout:add(upicon)
+    right_layout:add(pacwidget)
+    right_layout:add(baticon)
+    right_layout:add(batwidget)
+    right_layout:add(calendar)
+    right_layout:add(spacer)
     right_layout:add(mylayoutbox[s])
 
 
@@ -295,6 +342,11 @@ globalkeys = awful.util.table.join(
     -- Dmenu
 
     awful.key({ modkey,            }, "d"     , function () awful.util.spawn("dmenu_run -b -fn 'Droid Sans Mono for Powerline-8' -nb '#0a0a0a' -sb '#0a0a0a' -sf '#bfaa1a' -nf '#f32a46' "      ) end),
+    
+    -- Media Keys
+
+    awful.key({ modkey }, "F10"  , function () awful.util.spawn("amixer sset Master 2+") end),
+    awful.key({ modkey }, "F9"  , function () awful.util.spawn("amixer sset Master 2-") end),
     
     -- Treesome keys
     
